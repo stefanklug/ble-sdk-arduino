@@ -18,9 +18,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#ifndef PLATFORM_H__
-#define PLATFORM_H__
+#ifndef HAL_PLATFORM_H__
+#define HAL_PLATFORM_H__
 
 /** @file
 * @brief 
@@ -32,6 +31,11 @@
     #include <avr/pgmspace.h>
     #include "Arduino.h"
 
+#elif defined(__arm__) && defined(ARDUINO)
+	//We can't check for CORE_TEENSY, so we only check for ARDUINO which is defined on the command line
+	//Teensy has an AVR Emulation, but we mustn't redefine PROGMEM
+	#include "Arduino.h"
+	#include <avr/pgmspace.h>
 #elif defined(__PIC32MX__)
     //For Chipkit add the following libraries.
     #include <stdint.h>
@@ -70,4 +74,4 @@
 	#define memcpy_P        memcpy
 #endif
 
-#endif /* PLATFORM_H__ */
+#endif /* HAL_PLATFORM_H__ */

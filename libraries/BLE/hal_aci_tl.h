@@ -84,6 +84,8 @@ typedef struct aci_pins_t
 	uint8_t	interrupt_number;		//Required when using interrupts, otherwise ignored
 } aci_pins_t;
 
+void m_aci_data_print(hal_aci_data_t *p_data);
+
 /** @brief ACI Transport Layer initialization.
  *  @details
  *  This function initializes the transport layer, including configuring the SPI, creating

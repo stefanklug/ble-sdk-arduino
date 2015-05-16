@@ -38,7 +38,6 @@
 extern hal_aci_data_t msg_to_send;
 
 
-
 /**************************************************************************                */
 /* Utility function to fill the the ACI command queue                                      */
 /* aci_stat               Pointer to the ACI state                                         */
@@ -54,15 +53,15 @@ static bool aci_setup_fill(aci_state_t *aci_stat, uint8_t *num_cmd_offset)
   while (*num_cmd_offset < aci_stat->aci_setup_info.num_setup_msgs)
   {
 	//Board dependent defines
-	#if defined (__AVR__)
-		//For Arduino copy the setup ACI message from Flash to RAM.
-		memcpy_P(&msg_to_send, &(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset]), 
-				  pgm_read_byte_near(&(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset].buffer[0]))+2); 
-	#elif defined(__PIC32MX__)
+	#if defined(ARDUINO)
+	    //For Arduino copy the setup ACI message from Flash to RAM.
+	  	memcpy_P(&msg_to_send, &(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset]),
+	  				  pgm_read_byte_near(&(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset].buffer[0]))+2);
+	#else
 		//In ChipKit we store the setup messages in RAM
 		//Add 2 bytes to the length byte for status byte, length for the total number of bytes
-		memcpy(&msg_to_send, &(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset]), 
-				  (aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset].buffer[0]+2)); 
+		memcpy(&msg_to_send, &(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset]),
+				(aci_stat->aci_setup_info.setup_msgs[*num_cmd_offset].buffer[0]+2));
 	#endif
 
     //Put the Setup ACI message in the command queue
@@ -76,6 +75,10 @@ static bool aci_setup_fill(aci_state_t *aci_stat, uint8_t *num_cmd_offset)
     ret_val = true;
     
     (*num_cmd_offset)++;
+
+    //when driven by interrupts the old setup overflowd the nrf8001. This break only adds one setup
+    //command at a time, and now the logic always waits for the command result, until the next is queued
+    break;
   }
   
   return ret_val;
@@ -114,27 +117,26 @@ uint8_t do_aci_setup(aci_state_t *aci_stat)
   
   /* Fill the ACI command queue with as many Setup messages as it will hold. */
   aci_setup_fill(aci_stat, &setup_offset);
-  
+
   while (cmd_status != ACI_STATUS_TRANSACTION_COMPLETE)
   {
     /* This counter is used to ensure that this function does not loop forever. When the device
      * returns a valid response, we reset the counter.
      */
-    if (i++ > 0xFFFFE)
+    if (i++ > 100)
     {
       return SETUP_FAIL_TIMEOUT;	
     }
-    
+
     if (lib_aci_event_peek(aci_data))
     {
       aci_evt = &(aci_data->evt);
-      
+
       if (ACI_EVT_CMD_RSP != aci_evt->evt_opcode)
       {
         //Receiving something other than a Command Response Event is an error.
         return SETUP_FAIL_NOT_COMMAND_RESPONSE;
       }
-      
       cmd_status = (aci_status_code_t) aci_evt->params.cmd_rsp.cmd_status;
       switch (cmd_status)
       {
@@ -162,6 +164,8 @@ uint8_t do_aci_setup(aci_state_t *aci_stat)
        * remove it from the queue.
        */
        lib_aci_event_get (aci_stat, aci_data);
+    } else {
+    	delay(10);
     }
   }
   

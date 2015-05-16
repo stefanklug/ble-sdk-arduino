@@ -27,7 +27,7 @@
 #include "hal_platform.h"
 #include "hal_aci_tl.h"
 #include "aci_queue.h"
-#if ( !defined(__SAM3X8E__) && !defined(__PIC32MX__) )
+#ifdef __AVR__
 #include <avr/sleep.h>
 #endif
 /*
@@ -44,7 +44,7 @@ The outgoing command and the incoming event needs to be converted
     static const uint8_t reverse_lookup[] = { 0, 8,  4, 12, 2, 10, 6, 14,1, 9, 5, 13,3, 11, 7, 15 };
 #endif
 
-static void m_aci_data_print(hal_aci_data_t *p_data);
+void m_aci_data_print(hal_aci_data_t *p_data);
 static void m_aci_event_check(void);
 static void m_aci_isr(void);
 static void m_aci_pins_set(aci_pins_t *a_pins_ptr);
@@ -66,8 +66,9 @@ void m_aci_data_print(hal_aci_data_t *p_data)
 {
   const uint8_t length = p_data->buffer[0];
   uint8_t i;
+  Serial.print(" ");
   Serial.print(length, DEC);
-  Serial.print(" :");
+  Serial.print(": ");
   for (i=0; i<=length; i++)
   {
     Serial.print(p_data->buffer[i], HEX);
@@ -312,6 +313,7 @@ bool hal_aci_tl_event_get(hal_aci_data_t *p_aci_data)
     {
       Serial.print(" E");
       m_aci_data_print(p_aci_data);
+      Serial.flush();
     }
 
     if (was_full && a_pins_local_ptr->interface_is_interrupt)
@@ -348,12 +350,12 @@ void hal_aci_tl_init(aci_pins_t *a_pins, bool debug)
   */
   SPI.begin();
   //Board dependent defines
-  #if defined (__AVR__)
-    //For Arduino use the LSB first
-    SPI.setBitOrder(LSBFIRST);
-  #elif defined(__PIC32MX__)
+  #if defined(__PIC32MX__)
     //For ChipKit use MSBFIRST and REVERSE the bits on the SPI as LSBFIRST is not supported
     SPI.setBitOrder(MSBFIRST);
+  #else
+    //All others use LSB first
+    SPI.setBitOrder(LSBFIRST);
   #endif
   SPI.setClockDivider(a_pins->spi_clock_divider);
   SPI.setDataMode(SPI_MODE0);
@@ -421,14 +423,14 @@ bool hal_aci_tl_send(hal_aci_data_t *p_aci_cmd)
 static uint8_t spi_readwrite(const uint8_t aci_byte)
 {
 	//Board dependent defines
-#if defined (__AVR__)
-    //For Arduino the transmission does not have to be reversed
-    return SPI.transfer(aci_byte);
-#elif defined(__PIC32MX__)
+#if defined(__PIC32MX__)
     //For ChipKit the transmission has to be reversed
     uint8_t tmp_bits;
     tmp_bits = SPI.transfer(REVERSE_BITS(aci_byte));
 	return REVERSE_BITS(tmp_bits);
+#else
+	//For Arduino the transmission does not have to be reversed
+	return SPI.transfer(aci_byte);
 #endif
 }
 

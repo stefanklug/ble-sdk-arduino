@@ -51,6 +51,8 @@
 #ifndef ACI_H__
 #define ACI_H__
 
+#include <stdint.h>
+
 /**
  * Define an _aci_packed_ macro we can use in structure and enumerated type
  * declarations so that the types are sized consistently across different

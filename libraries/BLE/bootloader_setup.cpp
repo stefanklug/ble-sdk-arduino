@@ -1,3 +1,5 @@
+//bootloader is not yet ported to teensy
+#if defined (__AVR__)
 #include <avr/wdt.h>
 #include <EEPROM.h>
 #include "bootloader_setup.h"
@@ -162,3 +164,4 @@ bool bootloader_data_store (aci_state_t *state, uint16_t conn_timeout,
     return true;
   }
 }
+#endif
